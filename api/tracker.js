@@ -1,5 +1,13 @@
-// api/track.js - Vercel Serverless Function
-import { kv } from '@vercel/kv';
+// api/track.js - Vercel Serverless Function (No Database Required)
+
+// Simple in-memory storage (resets on deployment, but good for basic tracking)
+// For persistent storage across deployments, use Vercel KV or external service
+
+let stats = {
+  total_views: 0,
+  unique_visitors: [],
+  visits: []
+};
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -11,17 +19,9 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const STATS_KEY = 'page_stats';
-
   // GET - Retrieve stats
   if (req.method === 'GET') {
     try {
-      const stats = await kv.get(STATS_KEY) || {
-        total_views: 0,
-        unique_visitors: [],
-        visits: []
-      };
-      
       return res.status(200).json({
         total_views: stats.total_views,
         unique_visitors: stats.unique_visitors.length,
@@ -36,13 +36,6 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { visitor_id, timestamp, referrer, user_agent, page_url } = req.body;
-      
-      // Get current stats
-      let stats = await kv.get(STATS_KEY) || {
-        total_views: 0,
-        unique_visitors: [],
-        visits: []
-      };
       
       // Update stats
       stats.total_views += 1;
@@ -63,9 +56,6 @@ export default async function handler(req, res) {
       if (stats.visits.length > 1000) {
         stats.visits = stats.visits.slice(-1000);
       }
-      
-      // Save updated stats
-      await kv.set(STATS_KEY, stats);
       
       return res.status(200).json({ status: 'success' });
     } catch (error) {
